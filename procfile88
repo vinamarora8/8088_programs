@@ -1,0 +1,54 @@
+#! /bin/bash
+
+if [ "$#" -lt 1 ];
+then
+    echo "Usage: "$0" -f <file name> <-r -t>"
+    exit
+fi
+
+
+OPTIND=1
+
+remove=0
+truncate=0
+
+while getopts "f:rt" opt; do
+    case "$opt" in
+	r) remove=1
+	   ;;
+	t) truncate=1
+	   ;;
+	f) file=$OPTARG
+	   ;;
+    esac
+done
+
+
+# remove first 200 bytes
+if [ $remove -eq 1 ];
+then
+    echo "Removing first 200 bytes"
+    tmp_file=$file"_a"
+    tail -c +513 $file > $tmp_file
+    mv $tmp_file $file
+fi
+
+# truncate to nearest multiple of 64
+if [ $truncate -eq 1 ];
+then
+    size=$(stat --printf="%s" $file)
+    calc(){ awk "BEGIN { print "$*" }"; }
+    if [ $(calc $size%64) -eq 0 ];
+    then
+	echo "size compliant with requirement"
+    else
+	echo "truncating to nearest 64B"
+	new_size=$(calc $size/64)
+	new_size=$(calc $new_size+1)
+	new_size=$(calc $new_size-$(calc $new_size%1))
+	new_size=$(calc $new_size*64)
+	truncate --size=$new_size $file
+    fi
+fi
+
+echo "DONE!"
